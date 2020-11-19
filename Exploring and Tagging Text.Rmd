@@ -1,0 +1,178 @@
+---
+title: "Exploring and Tagging Text"
+author: "Chenghao Meng,Chun Gao,Fan Feng,Jiaheng Li,Yinfeng Zhou"
+date: "2020/11/18"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+# Load the package
+pacman:: p_load(tnum,httr,tidyverse,sentimentr,tidytext)
+tnum::tnum.authorize()
+```
+
+# 1 Co-occurence of Elizabeth and Darcy
+## 1.1 Data Preparation and Cleaning
+```{r}
+# Take a glance at the db
+pride_text <- tnum.getDatabasePhraseList("subject",level=3)
+#pride_text
+```
+
+First, we will tag the sentences with the occurence of Elizabeth and Darcy.
+
+```{r}
+# Tag "Elizabeth"
+tnum.tagByQuery("*pride* has text= REGEXP(\"Elizabeth\")","reference:Group9Elizabeth" )
+
+# Tag Darcy
+tnum.tagByQuery("*pride* has text= REGEXP(\"Darcy\")","reference:Group9Darcy" )
+```
+
+After that, we will generate a dataframe with the occurence of Darcy based our tag.
+
+Then, we will use the `filter` function in the `tidyverse` package to get the dataframe of sentences with the co-occurence of Elizabeth and Darcy.
+
+```{r}
+# Dataframe with the occurance of Darcy
+qdarcy <- tnum.query("@reference:Group9Darcy",max=394)
+darcy_df <- tnum.objectsToDf(qdarcy)
+#head(darcy_df)
+
+# Dataframe: Co-occurence of Elizabeth and Darcy 
+co_occur <- filter(darcy_df,grepl('Group9Elizabeth',tags))
+```
+
+## 1.2 Explortary Data Analysis
+### 1.2.1 Tree Plot
+
+Using the **co_occur** dataframe, a tree plot will be generated to visualize the co-occurence of Elizabeth and Darcy in different chapters and sentences within the *Pride and Prejudice*.
+
+```{r}
+# Tree plot
+plot_tree_co_occr=tnum.makePhraseGraphFromPathList(co_occur$subject)
+tnum.plotGraph(plot_tree_co_occr)
+```
+
+### 1.2.2 Distribution of Co-occurence
+
+The tree plot gives us a sense that Elizabeth and Darcy have appeared together in a lot of chapters in *Pride and Prejudice*. However, we are still not sure of the distribution of their co-occurence in different chapters. As a result, we will continue exploring the dataframe **co_occur**.
+
+```{r}
+# Get the info of chapter,paragraph,sentence
+co_occur_info <- co_occur %>% 
+  separate(subject,c("book","chapter","paragraph","sentence"),sep="/") %>% 
+  select(book,chapter,paragraph,sentence,string.value)
+```
+
+When having the information of the chapter, paragraph and sentence of their co-occurence in the book, we will explore their top 10 co-occurence in different chapters
+
+```{r message=FALSE, warning=FALSE}
+# Top 10 co-occurence in chapters
+co_occur_info %>% group_by(chapter) %>% 
+  summarise(times=n()) %>% 
+  arrange(desc(times)) %>% head(10) %>% 
+  
+  ggplot() + 
+  geom_bar(aes(x=reorder(chapter,times),y=times),stat = "identity") +
+  geom_text(aes(x=reorder(chapter,times),y=times,label=times),hjust=-0.5,col="royalblue") + 
+  xlab("Times") + ylab("Chapter") + 
+  ggtitle("Distribution of Chapters: Elizabeth & Darcy",subtitle = "Count of Their Co-occurence, Top 10 Chapters") +
+  coord_flip()
+```
+
+The bar plot shows that Elizabeth and Darcy appears together 8 times in chapter 45, which is the largest number of their co-occurence.
+
+We also have the interest to explore how the counts of these sentences with their co-occurence are distributed by chapter.
+
+```{r message=FALSE, warning=FALSE}
+# Distribution of sentences in chapter
+co_occur_info %>% group_by(sentence) %>% 
+  summarise(u_chapter=unique(chapter),
+            times=n()) %>% 
+  group_by(u_chapter) %>% 
+  summarise(sum_times=sum(times)) %>% 
+  arrange(desc(sum_times)) %>% head(10) %>% 
+
+ggplot() + 
+  geom_bar(aes(x=reorder(u_chapter,sum_times),y=sum_times),stat = "identity") +
+  geom_text(aes(x=reorder(u_chapter,sum_times),y=sum_times,label=sum_times),hjust=-0.5,col="royalblue") + 
+  xlab("Times") + ylab("Chapter") + 
+  ggtitle("Distribution of Sentences in Chapters: Elizabeth & Darcy",subtitle = "Count of Their Co-occurence, Top 10") +
+  coord_flip()
+```
+
+The plots denotes that there is the largest count of 70 in sentences in chapter 70 when they appear together in the *Pride and Prejudice*.
+
+# 2 Money-related Information
+
+After exploring the co-occurence of Elizabeth and Darcy, we would also like to explore the money-related information in the *Pride and Prejudice*.
+
+## 2.1 Data Preparation
+
+We will use the regular expression to get the sentences relating to money in the query to produce a dataframe.
+
+```{r}
+# Dataframe-money_df
+qmoney <- tnum.query("*pride* has * = REGEXP(\"money\")")
+money_df <- tnum.objectsToDf(qmoney)
+```
+
+## 2.2 Explortary Data Analysis
+### 2.2.1 Tree Plot
+```{r}
+# Tree plot of money
+plot_tree_money <- tnum.makePhraseGraphFromPathList(tnum.getAttrFromList(qmoney,"subject"))
+tnum.plotGraph(plot_tree_money)
+```
+
+The tree plot shows that money seems not to be a word that occurs many times in the book. Only 7 chapters contain the word "money".
+
+## 2.2.2 Sentiment Score
+
+Moreover, we would also like to know what is the sentiment when the word money appears in the sentence. And we will use the `sentiment_by` function in `sentimentr` package to compute the sentiment score of each sentence.
+
+```{r}
+money_df2 <- money_df %>% 
+  separate(subject,c("book","chapter","paragraph","sentence"),sep="/") %>% 
+  select(chapter,paragraph,sentence,string.value) %>%
+  rename(text=string.value) %>% 
+  # Delete stop words
+  filter(!text %in% stop_words$word)
+
+# Delete the "" in the text
+money_df2$text <- gsub("\"","",money_df2$text)
+```
+
+```{r}
+# Insert an empty column-senti_score
+money_df2$senti_score <- rep(NA,times=nrow(money_df2))
+
+# Compute sentiment score
+for (i in 1:nrow(money_df2)) {
+  sentences <- get_sentences(money_df2$text[i])
+  money_df2$senti_score[i] <- sentiment_by(sentences)$ave_sentiment
+}
+```
+
+After computing the sentiment score, we will draw a line chart to visualize the trend of sentiment score across the chapters that the word money appears.
+
+```{r message=FALSE, warning=FALSE}
+money_senti <- money_df2 %>% group_by(chapter) %>% 
+  summarise(ave_senti=mean(senti_score)) %>% 
+  arrange(desc(ave_senti))
+
+# Plot the sentiment score
+ggplot(data = money_senti,aes(x=chapter,y=ave_senti,group=1)) + 
+  geom_point(col="orange")+
+  geom_line(col="steelblue")+ 
+  xlab("Chapter") + ylab("Sentiment Score") + 
+  ggtitle("Sentiment Trend of Money-appearing Chapter")
+```
+
