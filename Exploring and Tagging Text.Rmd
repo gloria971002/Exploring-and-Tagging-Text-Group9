@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r message=FALSE}
 # Load the package
 pacman:: p_load(tnum,httr,tidyverse,sentimentr,tidytext)
-tnum::tnum.authorize()
+tnum.authorize(ip="54.158.136.133")
 ```
 
 # 1 Co-occurence of Elizabeth and Darcy
@@ -127,9 +127,21 @@ money_df <- tnum.objectsToDf(qmoney)
 ## 2.2 Explortary Data Analysis
 ### 2.2.1 Tree Plot
 ```{r}
-# Tree plot of money
-plot_tree_money <- tnum.makePhraseGraphFromPathList(tnum.getAttrFromList(qmoney,"subject"))
-tnum.plotGraph(plot_tree_money)
+#Tree plot of money
+# tnum.tagByQuery("*pride* has text == REGEXP(\"money\")", "reference:Group9money")
+# plot_tree_money <- tnum.makePhraseGraphFromPathList(tnum.getAttrFromList(qmoney,"subject"))
+# plot_tree_money2<-tnum.makePhraseGraphFromPathList(money_df$subject)
+# tnum.plotGraph(plot_tree_money)
+# tnum.plotGraph(plot_tree_money2)
+```
+```{r}
+tnum.tagByQuery("*pride* has text == REGEXP(\"money\")", "reference:Group9money")
+qmoney <- tnum.query("*pride* has text == REGEXP(\"money\")", max = 50)
+#qmoney
+money_df <- tnum.objectsToDf(qmoney)
+View(money_df)
+plot_money <- tnum.makePhraseGraphFromPathList(money_df$subject)
+tnum.plotGraph(plot_money)
 ```
 
 The tree plot shows that money seems not to be a word that occurs many times in the book. Only 7 chapters contain the word "money".
@@ -172,7 +184,7 @@ money_senti <- money_df2 %>% group_by(chapter) %>%
 ggplot(data = money_senti,aes(x=chapter,y=ave_senti,group=1)) + 
   geom_point(col="orange")+
   geom_line(col="steelblue")+ 
-  xlab("Chapter") + ylab("Sentiment Score") + 
+  xlab("Chapter")  +theme(axis.text.x = element_text(angle = 30, hjust = 1))
   ggtitle("Sentiment Trend of Money-appearing Chapter")
 ```
 
