@@ -120,7 +120,8 @@ We will use the regular expression to get the sentences relating to money in the
 
 ```{r}
 # Dataframe-money_df
-qmoney <- tnum.query("*pride* has * = REGEXP(\"money\")")
+#tnum.tagByQuery("*pride* has text == REGEXP(\"money\")", "reference:Group9money")
+qmoney <- tnum.query("*pride* has * = REGEXP(\"money\")",max=1000)
 money_df <- tnum.objectsToDf(qmoney)
 ```
 
@@ -128,23 +129,14 @@ money_df <- tnum.objectsToDf(qmoney)
 ### 2.2.1 Tree Plot
 ```{r}
 #Tree plot of money
-# tnum.tagByQuery("*pride* has text == REGEXP(\"money\")", "reference:Group9money")
+
 # plot_tree_money <- tnum.makePhraseGraphFromPathList(tnum.getAttrFromList(qmoney,"subject"))
-# plot_tree_money2<-tnum.makePhraseGraphFromPathList(money_df$subject)
-# tnum.plotGraph(plot_tree_money)
-# tnum.plotGraph(plot_tree_money2)
-```
-```{r}
-tnum.tagByQuery("*pride* has text == REGEXP(\"money\")", "reference:Group9money")
-qmoney <- tnum.query("*pride* has text == REGEXP(\"money\")", max = 50)
-#qmoney
-money_df <- tnum.objectsToDf(qmoney)
-View(money_df)
-plot_money <- tnum.makePhraseGraphFromPathList(money_df$subject)
-tnum.plotGraph(plot_money)
+plot_tree_money<-tnum.makePhraseGraphFromPathList(money_df$subject)
+tnum.plotGraph(plot_tree_money)
+
 ```
 
-The tree plot shows that money seems not to be a word that occurs many times in the book. Only 7 chapters contain the word "money".
+The tree plot shows that money seems not to be a word that occurs many times in the book. Only 13 chapters contain the word "money".
 
 ## 2.2.2 Sentiment Score
 
